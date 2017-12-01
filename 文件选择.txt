@@ -1,0 +1,57 @@
+Option Explicit
+Dim fileList
+
+'*****************************************************
+'功能:Step1SelectFiles 选择一个或多个文件
+'*****************************************************
+Private Function Step1SelectFiles(Optional title = "Ran Sharing Huawei File(Red Zone)") As Boolean
+    On Error GoTo YesErr
+    Dim fileID As Long
+    Dim File$
+    
+    With Application.FileDialog(msoFileDialogFilePicker)
+        .AllowMultiSelect = True
+        .Filters.Clear
+        .Filters.Add "Excel Files", "*.xls*;*.csv;*.txt"
+        .Filters.Add title, "*.*"
+        .Show
+        If .SelectedItems.Count > 0 Then
+            ReDim fileList(.SelectedItems.Count)
+        Else
+            Exit Function
+        End If
+        For fileID = 1 To .SelectedItems.Count
+            fileList(fileID - 1) = .SelectedItems(fileID)
+        Next
+    End With
+    
+    GoTo NoErr:
+YesErr:
+    Debug.Print "Select Ran Sharing file error" + Err.Description
+NoErr:
+    Step1SelectFiles = True
+End Function
+
+Public Sub GetImport_Source_Path()
+    Dim i As Integer
+    Application.ScreenUpdating = False
+    
+    If Step1SelectFiles() = False Then Exit Sub
+    
+    Sheet1.Range("B13").Value = fileList
+    
+    Application.ScreenUpdating = True
+End Sub
+
+
+Public Sub GetImport_Result_Path()
+    Dim i As Integer
+    Application.ScreenUpdating = False
+    
+    If Step1SelectFiles() = False Then Exit Sub
+    
+    Sheet1.Range("B14").Value = fileList
+    
+    Application.ScreenUpdating = True
+End Sub
+

@@ -1,0 +1,24 @@
+Function CreatePivot() As String
+    
+    Dim objTable As PivotTable, objField As PivotField
+    
+    ActiveWorkbook.Sheets("VIVA2019").Select
+    Range("A1").Select
+    
+    Set objTable = Sheets("VIVA2019").PivotTableWizard
+    
+    Set objField = objTable.PivotFields("Sector")
+    objField.Orientation = xlRowField
+    
+    Set objField = objTable.PivotFields("frequency")
+    objField.Orientation = xlColumnField
+    Set objField = objTable.PivotFields("TargetMIMO")
+    objField.Orientation = xlColumnField
+    
+    Set objField = objTable.PivotFields("bandwidth")
+    objField.Orientation = xlDataField
+    objField.Function = xlSum
+    
+    CreatePivot = ThisWorkbook.ActiveSheet.Name
+    
+End Function

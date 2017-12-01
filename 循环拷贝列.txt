@@ -1,0 +1,47 @@
+Sub Test()
+    
+    Dim i As Long
+    
+    Dim pivotName As String
+    pivotName = CreatePivot()
+    
+    ActiveWorkbook.Sheets(pivotName).Select
+    Dim pivotSheet As Worksheet
+    Set pivotSheet = Sheets(pivotName)
+    
+    Dim resultSheet As Worksheet
+    Call SheetCreateForce("Result")
+    Set resultSheet = Worksheets("Result")
+    
+    Dim end_Rows As Integer
+    end_Rows = pivotSheet.Range("A1048576").End(xlUp).Row
+    
+    pivotSheet.Range("A3:A" & end_Rows).Copy
+    resultSheet.Range("A1").PasteSpecial xlPasteValues
+    
+    Dim end_Columns As Integer
+    end_Columns = pivotSheet.UsedRange.Columns.Count
+    
+    Dim j As Long
+    j = 0
+    For i = 2 To end_Columns
+        
+        Dim freq As String
+        Dim preFreq As String
+        freq = pivotSheet.Cells(2, i)
+        If freq <> "" Then
+            preFreq = freq
+        End If
+        
+        If pivotSheet.Cells(3, i) = "" Then
+            j = j + 1
+            GoTo nextInteration
+        Else
+            pivotSheet.Range(pivotSheet.Cells(3, i), pivotSheet.Cells(end_Rows, i)).Copy
+            resultSheet.Range(resultSheet.Cells(1, i - j), resultSheet.Cells(end_Rows - 2, i - j)).PasteSpecial xlPasteValues
+            resultSheet.Cells(1, i - j) = preFreq + resultSheet.Cells(1, i - j)
+        End If
+nextInteration:
+    Next
+    
+End Sub

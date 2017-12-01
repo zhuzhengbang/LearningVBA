@@ -1,0 +1,55 @@
+Function SheetExistYesNo(mySheetName As String) As String
+   
+   Dim mySheetNameTest As String
+   
+   On Error Resume Next
+   mySheetNameTest = Worksheets(mySheetName).Name
+   If Err.Number = 0 Then
+      SheetExistYesNo = 1
+      'MsgBox "The sheet named ''" & mySheetName & "'' DOES exist in this workbook."
+   Else
+      Err.Clear
+      SheetExistYesNo = 0
+      'MsgBox "The sheet named ''" & mySheetName & "'' does NOT exist in this workbook."
+   End If
+   
+End Function
+
+
+Sub SheetCreateifNotExist(mySheetName As String)
+    
+    Dim sheetExist As Integer
+    sheetExist = SheetExistYesNo(mySheetName)
+    If sheetExist = 0 Then
+       Worksheets.Add.Name = mySheetName
+    Else
+       MsgBox "The sheet named ''" & mySheetName & "'' DOES exist in this workbook."
+    End If
+    
+End Sub
+
+
+Sub SheetCreateForce(mySheetName As String)
+    
+    Dim sheetExist As Integer
+    sheetExist = SheetExistYesNo(mySheetName)
+    If sheetExist = 0 Then
+       Worksheets.Add.Name = mySheetName
+    Else
+       'MsgBox "The sheet named ''" & mySheetName & "'' DOES exist in this workbook."
+       Worksheets(mySheetName).Delete
+       Worksheets.Add.Name = mySheetName
+    End If
+
+End Sub
+
+
+Sub Test()
+    
+    Dim newSheetName As String
+    newSheetName = "Result1"
+    
+    Call SheetCreateForce(newSheetName)
+    
+    
+End Sub

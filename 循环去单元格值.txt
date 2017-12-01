@@ -1,0 +1,122 @@
+Public Sub WriteNewSht()
+    Dim ShtLTE As Worksheet
+    Dim ShtMig As Worksheet
+    Dim ShtRes As Worksheet
+    Dim i As Long
+    
+    Dim End_Rows As Long
+    
+    Dim DicM As Object
+    Dim ArrV
+    
+    Application.ScreenUpdating = False
+    On Error Resume Next
+    
+    Set DicM = CreateObject("Scripting.Dictionary")
+    
+    ReDim ArrV(1 To 2)
+    
+    Set ShtLTE = ThisWorkbook.Worksheets("LTE_Cell_CapacityEvaluation_Res")
+    Set ShtMig = ThisWorkbook.Worksheets("Migrating Data")
+    Set ShtRes = ThisWorkbook.Worksheets("Migrating Result")
+    
+    
+    For i = 2 To ShtMig.Range("A1048576").End(xlUp).Row
+        If Len(ShtMig.Cells(i, 1).Value) > 0 Then
+            ArrV(1) = ShtMig.Cells(i, 6).Value
+            ArrV(2) = ShtMig.Cells(i, 7).Value
+            DicM(ShtMig.Cells(i, 1).Value) = ArrV
+        End If
+    Next
+    
+    End_Rows = ShtLTE.Range("A1048576").End(xlUp).Row
+    
+    ShtRes.Range("A3:W" & End_Rows).ClearContents
+    
+    
+    ShtLTE.Range("A2:D" & End_Rows).Copy
+    ShtRes.Range("A3").PasteSpecial xlPasteValues
+    Application.CutCopyMode = False
+    
+    ShtLTE.Range("AM2:AM" & End_Rows).Copy
+    ShtRes.Range("G3").PasteSpecial xlPasteValues
+    Application.CutCopyMode = False
+    
+    ShtLTE.Range("M2:M" & End_Rows).Copy
+    ShtRes.Range("H3").PasteSpecial xlPasteValues
+    Application.CutCopyMode = False
+    
+    ShtLTE.Range("BD2:BD" & End_Rows).Copy
+    ShtRes.Range("M3").PasteSpecial xlPasteValues
+    Application.CutCopyMode = False
+    
+    ShtLTE.Range("AW2:AX" & End_Rows).Copy
+    ShtRes.Range("O3").PasteSpecial xlPasteValues
+    Application.CutCopyMode = False
+    
+    For i = 2 To End_Rows
+        If Len(ShtLTE.Cells(i, 2).Value) > 0 Then
+            If DicM.Exists(ShtLTE.Cells(i, 2).Value) Then
+                ArrV = DicM(ShtLTE.Cells(i, 2).Value)
+                ShtRes.Cells(i + 1, 5).Value = ArrV(1)
+                ShtRes.Cells(i + 1, 6).Value = ArrV(2)
+            End If
+            
+            ShtRes.Cells(i + 1, "I").Value = Round(ShtLTE.Cells(i, "N").Value, 2)
+            ShtRes.Cells(i + 1, "J").Value = Round(ShtLTE.Cells(i, "G").Value / 1024 / 1024, 4)
+            ShtRes.Cells(i + 1, "K").Value = Round(ShtLTE.Cells(i, "R").Value, 2)
+            ShtRes.Cells(i + 1, "L").Value = Round(ShtLTE.Cells(i, "I").Value / 1024 / 1024, 4)
+            
+            ShtRes.Cells(i + 1, "N").Value = Round(ShtLTE.Cells(i, "BC").Value, 2)
+            ShtRes.Cells(i + 1, "Q").Value = Round(ShtLTE.Cells(i, "AV").Value, 4)
+            '=IF(I3<90,J3,J3*(100-F3)/100)
+            
+            If ShtRes.Cells(i + 1, "I").Value < 90 Then
+                ShtRes.Cells(i + 1, "R").Value = ShtRes.Cells(i + 1, "J").Value
+            Else
+                ShtRes.Cells(i + 1, "R").Value = ShtRes.Cells(i + 1, "J").Value * (100 - ShtRes.Cells(i + 1, "F").Value) / 100
+            End If
+            
+            '=ROUND(IF(I3<90,I3,100*(O3*R3+P3)*1024*1024*1024*8/(N3*0.9*3600*1000)),2)
+            
+            If ShtRes.Cells(i + 1, "I").Value < 90 Then
+                ShtRes.Cells(i + 1, "S").Value = Round(ShtRes.Cells(i + 1, "I").Value, 2)
+            Else
+                ShtRes.Cells(i + 1, "S").Value = Round(100 * (ShtRes.Cells(i + 1, "O").Value * ShtRes.Cells(i + 1, "R").Value + ShtRes.Cells(i + 1, "P").Value) * 1024 * 1024 * 1024 * 8 / (ShtRes.Cells(i + 1, "N").Value * 0.9 * 3600 * 1000), 2)
+            End If
+            
+            '=IF(I3<90,H3,H3*(100-E3)/100)
+            If ShtRes.Cells(i + 1, "I").Value < 90 Then
+                ShtRes.Cells(i + 1, "T").Value = ShtRes.Cells(i + 1, "H").Value
+            Else
+                ShtRes.Cells(i + 1, "T").Value = ShtRes.Cells(i + 1, "H").Value * (100 - ShtRes.Cells(i + 1, "E").Value) / 100
+            End If
+            
+            '=ROUND(IF(T3=H3,K3,MIN(100*K3/(100-E3),M3)),2)
+            If ShtRes.Cells(i + 1, "T").Value = ShtRes.Cells(i + 1, "H").Value Then
+                ShtRes.Cells(i + 1, "U").Value = Round(ShtRes.Cells(i + 1, "K").Value, 2)
+            Else
+                ShtRes.Cells(i + 1, "U").Value = Round(Application.Min(100 * ShtRes.Cells(i + 1, "K").Value / (100 - ShtRes.Cells(i + 1, "E").Value), ShtRes.Cells(i + 1, "M").Value), 2)
+            End If
+            
+            '=IF(L3=0,R3,IF((R3+L3)<J3,(R3+L3),J3*0.95))
+            If ShtRes.Cells(i + 1, "L").Value = 0 Then
+                ShtRes.Cells(i + 1, "V").Value = ShtRes.Cells(i + 1, "R").Value
+            Else
+                If ShtRes.Cells(i + 1, "R").Value + ShtRes.Cells(i + 1, "L").Value < ShtRes.Cells(i + 1, "J").Value Then
+                    ShtRes.Cells(i + 1, "V").Value = ShtRes.Cells(i + 1, "R").Value + ShtRes.Cells(i + 1, "L").Value
+                Else
+                    ShtRes.Cells(i + 1, "V").Value = ShtRes.Cells(i + 1, "J").Value * 0.95
+                End If
+            End If
+            
+            '=ROUND(IF(V3=R3,S3,MIN(100*1024*1024*1024*8*(O3*V3+P3)/(N3*0.9*3600*1000),I3*(0.95+RAND()/100))),2)
+            If ShtRes.Cells(i + 1, "V").Value = ShtRes.Cells(i + 1, "R").Value Then
+                ShtRes.Cells(i + 1, "W").Value = Round(ShtRes.Cells(i + 1, "S").Value, 2)
+            Else
+                ShtRes.Cells(i + 1, "W").Value = Round(Application.Min(((ShtRes.Cells(i + 1, "O").Value * ShtRes.Cells(i + 1, "V").Value + ShtRes.Cells(i + 1, "P").Value) * 100 * 1024 * 1024 * 1024 * 8) / (ShtRes.Cells(i + 1, "N").Value * 0.9 * 3600 * 1000), ShtRes.Cells(i + 1, "I").Value * (0.95 + Rnd() / 100)), 2) 'I3*(0.95+RAND()/100)
+            End If
+        End If
+    Next
+Application.ScreenUpdating = True
+End Sub

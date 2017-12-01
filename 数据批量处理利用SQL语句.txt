@@ -1,0 +1,291 @@
+Option Explicit
+Public Cnn As Object
+
+Public Function ConnSheet()
+    Set Cnn = CreateObject("ADODB.Connection")
+    
+    With Cnn
+        .Provider = "Microsoft.ACE.OLEDB.12.0"
+        .ConnectionString = "Extended Properties=Excel 12.0;" _
+            & "Data Source=" & ThisWorkbook.Path & "/" & ThisWorkbook.Name
+        .Open
+    End With
+End Function
+
+Public Sub UpdateNewData()
+    Dim Str_Data_Path As String
+    Dim Str_Result_Path As String
+    Dim ShtMain As Worksheet
+    Dim Wb As Workbook
+    Dim Sht As Worksheet
+    Dim i As Long
+
+
+    Application.ScreenUpdating = False
+    Application.EnableEvents = False
+
+    On Error GoTo YesErr
+
+    Set ShtMain = ThisWorkbook.Worksheets("Main")
+
+    Str_Data_Path = ShtMain.Range("B13").Value
+    Str_Result_Path = ShtMain.Range("B14").Value
+    
+    ThisWorkbook.Worksheets("BandWidthExpand").Range("A2:P" & ThisWorkbook.Worksheets("BandWidthExpand").Range("A1048576").End(xlUp).Row + 1).ClearContents
+    
+    If Len(Str_Data_Path) > 0 And Len(Str_Result_Path) > 0 Then
+    Else
+        Exit Sub
+    End If
+
+    Set Wb = GetObject(Str_Data_Path)
+    Application.DisplayAlerts = True
+
+    Set Sht = Wb.Worksheets(1)
+
+    If Sht.AutoFilterMode = True Then
+        Sht.UsedRange.AutoFilter
+    End If
+    
+    ThisWorkbook.Worksheets("Bandwidth_Data").Cells.ClearContents
+    Sht.Range("A1").Resize(Sht.Range("A1048576").End(xlUp).Row, Sht.Range("XDF1").End(xlToLeft).Column).Copy
+    ThisWorkbook.Worksheets("Bandwidth_Data").Range("A1").PasteSpecial xlPasteValues
+    Application.CutCopyMode = False
+    
+    Wb.Close False
+
+    Set Wb = Nothing
+    Set Sht = Nothing
+
+
+    Set Wb = GetObject(Str_Result_Path)
+    Set Sht = Wb.Worksheets(1)
+
+    If Sht.AutoFilterMode = True Then
+        Sht.UsedRange.AutoFilter
+    End If
+    
+    ThisWorkbook.Worksheets("Cell_CapacityEvaluation").Cells.ClearContents
+    Sht.Range("A1").Resize(Sht.Range("A1048576").End(xlUp).Row, Sht.Range("XDF1").End(xlToLeft).Column).Copy
+    ThisWorkbook.Worksheets("Cell_CapacityEvaluation").Range("A1").PasteSpecial xlPasteValues
+    
+    Application.CutCopyMode = False
+    
+    Wb.Close False
+    Set Wb = Nothing
+       
+    
+    Call GetCellData
+    Call WriteNew_Data
+    
+    ThisWorkbook.Worksheets("Bandwidth_Data").Cells.ClearContents
+    ThisWorkbook.Worksheets("Cell_CapacityEvaluation").Cells.ClearContents
+        
+    GoTo NoErr:
+YesErr:
+    MsgBox "Update wavelength dependency failed: " + Err.Description
+NoErr:
+    Application.ScreenUpdating = True
+    Application.EnableEvents = True
+    MsgBox "Please Check Result Sheet."
+End Sub
+
+Function ExistSheet(Wb As Workbook, ShtName As String) As Boolean
+    Dim Sht As Worksheet
+    On Error Resume Next
+    Set Sht = Wb.Worksheets(ShtName) '要出错就在这儿出错!
+    If Err.Number = 0 Then 'Err.Number=0恰好说明正确,Err对象的默认属性就是Number
+        ExistSheet = True
+    Else
+        '        MsgBox ShtName & "工作表不存在"
+    End If
+    Set Sht = Nothing '得到正确的结果后,工作表对象就无存在的意义,及时清空.
+End Function
+
+Function GetCellData()
+    Dim StrSql As String
+    Dim ShtCell As Worksheet
+    
+    Dim ShtResult As Worksheet
+    
+    Set ShtResult = ThisWorkbook.Worksheets("原始扇区数据")
+    Set ShtBand = ThisWorkbook.Worksheets("BandWidthExpand")
+    
+    ThisWorkbook.Worksheets("原始扇区数据").Range("A2:G1048576").ClearContents
+    ThisWorkbook.Worksheets("目标扇区数据").Range("A2:B1048576").ClearContents
+    
+    Call ConnSheet
+    
+    StrSql = "Select Left([Cell Name],Len([Cell Name])-1),[Cell Name],0,[BandWidth(MHz)] From [Cell_CapacityEvaluation$] A Left Join [Bandwidth_Data$] B On Left(A.[Cell Name],Len(A.[Cell Name])-1) = B.[CELLNAME] Where [Cell Name] is not null"
+    
+    ThisWorkbook.Worksheets("Bandwidth_Data").Range("A" & ThisWorkbook.Worksheets("Bandwidth_Data").Range("A1048576").End(xlUp).Row + 1).CopyFromRecordset Cnn.Execute(StrSql)
+    
+    ThisWorkbook.Worksheets("Bandwidth_Data").UsedRange.RemoveDuplicates Columns:=Array(1, 2), Header:=xlYes
+    
+    StrSql = "Select [Cell Name],Left([Cell Name],Len([Cell Name])-1) as [SectorName],[BandWidth(MHz)],[PSTraffic(KBytes)],[CurUserThrAbi],[ActiveUserNumber],[DL PRB Utilization(%)],[CellThrAbi],[CellTrafficThreshold(GB)] From [Cell_CapacityEvaluation$] A Left Join [Bandwidth_Data$] B On A.[Cell Name]=B.[CELLNAME] Where A.[Cell Name] Is not null"
+    
+    StrSql = "Select T.[SectorName],Sum(T.[BandWidth(MHz)]),Sum(T.[PSTraffic(KBytes)]),Sum(T.[CurUserThrAbi]*[ActiveUserNumber]),Sum(T.[ActiveUserNumber]),Count(T.[DL PRB Utilization(%)]),Avg(T.[CellTrafficThreshold(GB)]) From (" & StrSql & ") As T Group by T.[SectorName]"
+    
+    ShtResult.Range("A2").CopyFromRecordset Cnn.Execute(StrSql)
+    Cnn.Close
+    Set Cnn = Nothing
+    
+    Call ConnSheet
+    StrSql = "Select B.[CELLNAME],B.[SectorName],A.[BandWidth(MHz)],[EARFCN],B.[AfterBandwidth],[PSTraffic(KBytes)],[CurUserThrAbi],[ActiveUserNumber],[DL PRB Utilization(%)],[CellTrafficThreshold(GB)] From [Bandwidth_Data$] B Left Join [Cell_CapacityEvaluation$] A On A.[Cell Name]=B.[CELLNAME] Where B.[CELLNAME] Is not null Order by B.[CELLNAME] ASC"
+'    StrSql = "Select [CELLNAME],[SectorName],[BeforeBandwidth],B.[EARFCN],[AfterBandwidth] From [Bandwidth_Data$] A Left Join [Cell_CapacityEvaluation$] B On B.[Cell Name]=A.[CELLNAME] Where B.[EARFCN] Is null"
+    
+    ShtBand.Range("A2").CopyFromRecordset Cnn.Execute(StrSql)
+    
+    StrSql = "Select [SECTORID],Sum([NewBandWidth]) From [BandWidthExpand$] Where [SECTORID] is not null Group by [SECTORID]"
+    
+    ThisWorkbook.Worksheets("目标扇区数据").Range("A2").CopyFromRecordset Cnn.Execute(StrSql)
+    
+    Cnn.Close
+    Set Cnn = Nothing
+End Function
+
+
+Function WriteNew_Data()
+    Dim ShtBand  As Worksheet
+    Dim DicY As Object
+    Dim DicM As Object
+    
+    Dim i As Long
+    Dim k As Integer
+    
+    Dim Arr As Variant
+    Dim Arr_V As Variant
+    
+    Dim Int_Down As Double
+    Dim Int_User As Double
+    
+    Dim Int_W As Double
+    
+    Set DicY = CreateObject("Scripting.Dictionary")
+    Set DicM = CreateObject("Scripting.Dictionary")
+    
+    Set ShtBand = ThisWorkbook.Worksheets("BandWidthExpand")
+    
+    Int_Down = ThisWorkbook.Worksheets("Main").Range("C15").Value
+    Int_User = ThisWorkbook.Worksheets("Main").Range("E15").Value
+        
+    On Error Resume Next
+    
+'    ShtBand.Range("A2:P" & ShtBand.Range("A1048576").End(xlUp).Row + 1).ClearContents
+    Arr = ThisWorkbook.Worksheets("原始扇区数据").Range("A2:H" & ThisWorkbook.Worksheets("原始扇区数据").Range("A1048576").End(xlUp).Row - 1)
+    
+    For i = 1 To UBound(Arr)
+        If Len(Arr(i, 1)) > 0 Then
+            ReDim Arr_V(0 To UBound(Arr, 2) - 2)
+            For k = 2 To UBound(Arr, 2)
+                Arr_V(k - 2) = Arr(i, k)
+            Next
+            
+            DicY(Arr(i, 1)) = Arr_V
+        End If
+    Next
+    
+    Arr = ThisWorkbook.Worksheets("目标扇区数据").Range("A2:B" & ThisWorkbook.Worksheets("目标扇区数据").Range("A1048576").End(xlUp).Row - 1)
+    
+    For i = 1 To UBound(Arr)
+        If Len(Arr(i, 1)) > 0 Then
+            DicM(Arr(i, 1)) = Arr(i, 2)
+        End If
+    Next
+    
+    Erase Arr
+    
+    For i = 2 To ShtBand.Range("A1048576").End(xlUp).Row
+        Arr_V = DicY(ShtBand.Cells(i, 2).Value)
+        Int_W = DicM(ShtBand.Cells(i, 2).Value)
+        
+        If (Arr_V(0) <> Int_W) Then
+        
+        
+        If (ShtBand.Cells(i, 3) <> ShtBand.Cells(i, 5)) Then
+           '总下行流量*下行流量增长因子*容小区带宽after BandWidth /扩容后总带宽SUM(BandWidth(MHz))
+           ShtBand.Cells(i, 11).Value = Arr_V(1) * Int_Down * (ShtBand.Cells(i, 5).Value / Int_W)
+           
+           '总激活用户数*用户数增长因子*扩容小区带宽/扩容后总带宽
+           ShtBand.Cells(i, 12).Value = Arr_V(3) * Int_User * (ShtBand.Cells(i, 5).Value / Int_W)
+           
+           '新小区单用户速率能力SUM(CurUserThrAbi *小区激活用户数)/扇区下老小区个数/新小区分配激活用户数
+           If (ShtBand.Cells(i, 12).Value >= 1) Then
+              ShtBand.Cells(i, 13).Value = Arr_V(2) / Arr_V(4) / ShtBand.Cells(i, 12).Value 'ShtBand.Cells(i, 7).Value * ShtBand.Cells(i, 8).Value / Arr_V(4) / ShtBand.Cells(i, 12).Value
+           Else
+               ShtBand.Cells(i, 13).Value = Arr_V(2) / Arr_V(4)
+           End If
+           
+            'MIN(100*新小区吸收话务量/扇区下总最大话务吸收门限CellTrafficThreshold(GB)/扇区下老小区个数/1024/1024,90);
+            ShtBand.Cells(i, 14).Value = Application.Min(100 * Arr_V(1) * Int_Down * (ShtBand.Cells(i, 5).Value / Int_W) / Arr_V(5) / 1024 / 1024, 90)
+           
+        Else
+           '未扩容小区：总下行流量*下行增长因子*扩容前总带宽/扩容后总带宽*扩容前小区流量/扩容前总流量
+           ShtBand.Cells(i, 11).Value = Arr_V(1) * Int_Down * (Arr_V(0) / Int_W) * (ShtBand.Cells(i, 6).Value / Arr_V(1))
+           '未扩容小区：总激活用户数*用户数增长因子*扩容前总带宽/扩容后总带宽*扩容前激活用户数/扩容前总激活用户数
+           ShtBand.Cells(i, 12).Value = Arr_V(3) * Int_User * (Arr_V(0) / Int_W) * (ShtBand.Cells(i, 8).Value / Arr_V(3))
+           '未扩容小区：现网单用户速率/老小区扩容后激活用户数
+           If (ShtBand.Cells(i, 12).Value >= 1) Then
+              ShtBand.Cells(i, 13).Value = ShtBand.Cells(i, 7).Value * ShtBand.Cells(i, 8).Value / ShtBand.Cells(i, 12).Value
+              
+           Else
+              ShtBand.Cells(i, 13).Value = ShtBand.Cells(i, 7).Value * ShtBand.Cells(i, 8).Value
+           End If
+           
+           'MIN(100*老小区吸收话务量/扇区下总最大话务吸收门限CellTrafficThreshold(GB)/扇区下老小区个数/1024/1024,90);
+            ShtBand.Cells(i, 14).Value = ShtBand.Cells(i, 11).Value * ShtBand.Cells(i, 9).Value / ShtBand.Cells(i, 6).Value
+           
+        End If
+        
+                 
+        'ShtBand.Cells(i, 13).Value = Arr_V(2) * Arr_V(3) / Arr_V(4) / ShtBand.Cells(i, 12).Value 'ShtBand.Cells(i, 7).Value * ShtBand.Cells(i, 8).Value / Arr_V(4) / ShtBand.Cells(i, 12).Value
+'        '=IF(C2>0,G2*E2/C2*H2/U2,P2/S2/IF(U2<1,1,U2))
+'        If ShtBand.Cells(i, 3).Value > 0 Then
+'            ShtBand.Cells(i, 13).Value = ShtBand.Cells(i, 7).Value * ShtBand.Cells(i, 8).Value * ShtBand.Cells(i, 5).Value / ShtBand.Cells(i, 3).Value / (Arr_V(3) * Int_User * (ShtBand.Cells(i, 5).Value / Int_W))
+'        Else
+'            ShtBand.Cells(i, 13).Value = Arr_V(2) / Arr_V(4) / IIf(Arr_V(3) * Int_User * (Arr_V(0) / Int_W) < 1, 1, Arr_V(3) * Int_User * (Arr_V(0) / Int_W))
+'        End If
+        
+      
+        
+        '老小区用户速率= IF（老小区单用户速率*老小区激活用户数/老小去分配的激活用户数 （扩容前总带宽/扩容后总带宽）*小区原网激活用户数/小区原网总激活用户数< 老小区单用户速率，
+        '老小区单用户速率*扇区扩容后总带宽/扇区扩容前总带宽，
+        '小区单用户速率*老小区激活用户数/老小去分配的激活用户数）
+        'If ShtBand.Cells(i, 7).Value * ShtBand.Cells(i, 8).Value / (ShtBand.Cells(i, 8).Value * (Arr_V(0) / Int_W * ShtBand.Cells(i, 8).Value / Arr_V(3))) < ShtBand.Cells(i, 7).Value Then
+        '    ShtBand.Cells(i, 15).Value = ShtBand.Cells(i, 7).Value * Int_W / Arr_V(0)
+       ' Else
+         '   ShtBand.Cells(i, 15).Value = ShtBand.Cells(i, 7).Value * ShtBand.Cells(i, 8).Value / (ShtBand.Cells(i, 8).Value * (Arr_V(0) / Int_W * ShtBand.Cells(i, 8).Value / Arr_V(3)))
+       ' End If
+'        If ShtBand.Cells(i, 13).Value < ShtBand.Cells(i, 7).Value Then
+'            ShtBand.Cells(i, 15).Value = ShtBand.Cells(i, 7).Value * Int_W / Arr_V(0)
+'        Else
+'            ShtBand.Cells(i, 15).Value = ShtBand.Cells(i, 7).Value * ShtBand.Cells(i, 8).Value / ShtBand.Cells(i, 12).Value
+'        End If
+        
+       ' 老小区扩容后的流量 = 扇区预测总流量 * (扩容前总带宽 / 扩容后总带宽) * 小区原网话务量  老小区扩容前PRB利用率/ 小区原网总话务量
+        '老小区PRB利用率=IF（老小区扩容后的流量*老小区的话务权重因子*老小区扩容前PRB利用率/老小区扩容前吸收流量 > 老小区扩容前PRB，
+        '老小区扩容前PRB*扇区扩容前总带宽/扇区扩容后总带宽，老小区扩容后吸收流量*老小区扩容前PRB利用率/老小区扩容前吸收流量）
+        
+        'If Arr_V(1) * Int_Down * (Arr_V(0) / Int_W) * ShtBand.Cells(i, 6).Value / Arr_V(1) * ShtBand.Cells(i, 9).Value / ShtBand.Cells(i, 6).Value > ShtBand.Cells(i, 9).Value Then
+        '    ShtBand.Cells(i, 16).Value = ShtBand.Cells(i, 9).Value * Arr_V(0) / Int_W
+       ' Else
+        '    ShtBand.Cells(i, 16).Value = Arr_V(1) * Int_Down * (Arr_V(0) / Int_W) * ShtBand.Cells(i, 6).Value / Arr_V(1) * ShtBand.Cells(i, 9).Value / ShtBand.Cells(i, 6).Value
+        'End If
+'        If ShtBand.Cells(i, 10).Value * ShtBand.Cells(i, 14).Value / Arr_V(5) < ShtBand.Cells(i, 7).Value Then
+'            ShtBand.Cells(i, 16).Value = ShtBand.Cells(i, 10).Value * Int_W / Arr_V(0)
+'        Else
+'            ShtBand.Cells(i, 16).Value = ShtBand.Cells(i, 10).Value * ShtBand.Cells(i, 14).Value / Arr_V(5)
+'        End If
+'
+        Else
+        
+           ShtBand.Cells(i, 11).Value = ShtBand.Cells(i, 6).Value
+           ShtBand.Cells(i, 12).Value = ShtBand.Cells(i, 8).Value
+           ShtBand.Cells(i, 13).Value = ShtBand.Cells(i, 7).Value
+           ShtBand.Cells(i, 14).Value = ShtBand.Cells(i, 9).Value
+        
+        End If
+        
+    Next
+        
+End Function

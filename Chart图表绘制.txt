@@ -1,0 +1,1012 @@
+Option Explicit
+Rem 使用建议：建议每张图都定义一个这样的类，可以更加方便的操作每张图
+Rem Sample要操作的页面
+Public chartSheet As Worksheet
+Rem Sample要操作的数据序列索引/Sample所标示图的序列总数
+Public SeriesIndex As Integer
+Rem Sample要操作的图表索引号
+Public ChartIndex As Integer
+Public TargetChart As Chart
+
+Public Function GetChartsNum() As Integer
+    Dim i As Integer
+    For i = 1 To chartSheet.ChartObjects.Count
+        GetChartsNum = GetChartsNum + 1
+    Next
+End Function
+
+Public Function ExistChart(SourceSheet As Worksheet, ChartName As String) As Boolean
+    Dim ExistCht As Chart
+    On Error Resume Next
+
+    Set ExistCht = SourceSheet.ChartObjects(ChartName).Chart
+    If Err.Number = 0 Then ExistChart = True
+End Function
+
+Public Function AttachToChart(SourceSheet As Worksheet, ChartName As String) As Chart
+    Set AttachToChart = SourceSheet.ChartObjects(ChartName).Chart
+    Set chartSheet = SourceSheet
+    ChartIndex = SourceSheet.ChartObjects(ChartName).Index
+End Function
+Public Sub ClearAllCharts()
+Rem 清空页面中所有的图表
+    Dim i%
+    For i = 1 To chartSheet.ChartObjects.Count
+        chartSheet.ChartObjects(1).Delete
+    Next
+End Sub
+Public Sub ClearAllShapes()
+Rem 清空页面中所有的自定义形状
+    Dim i%
+    For i = 1 To chartSheet.Shapes.Count
+        chartSheet.Shapes(1).Delete
+    Next
+End Sub
+Public Function InitialChartPosition(Left As Integer, top As Integer, Width As Integer, Height As Integer) As Integer
+Rem 初始化图表的位置
+    chartSheet.ChartObjects.Add Left, top, Width, Height
+    ChartIndex = chartSheet.ChartObjects.Count
+    InitialChartPosition = chartSheet.ChartObjects.Count
+    Rem Sample要操作的数据序列索引/Sample所标示图的序列总数
+    Static SeriesIndex As Integer
+    SeriesIndex = 0
+End Function
+Public Sub DeleteChartByIndex(DeleteIndex As Integer)
+Rem 删除特定索引的图表
+Rem DeleteIndex:要删除图表的索引
+    chartSheet.ChartObjects(DeleteIndex).Delete
+End Sub
+Public Sub SetChartAsLinear(LinearType As XlChartType, Optional AddGradient As Boolean = False, Optional PlotAreaDegree As MsoGradientStyle = msoGradientHorizontal, Optional ShapeGradient As MsoGradientStyle = msoGradientVertical)
+Rem 设置图表为线性图表，如果为非线性图表类型则退出过程
+Rem 参数说明：ChartInde——设置类型的图表索引，LinearType——要设置的图表类型，AddGradient——是否增加渐进色效果，PlotAreaDegree——绘图区渐变色角度
+Rem 参数说明：ShapeGradient——设置图表的背景渐变效果
+    Select Case LinearType
+    Case Is = xlLine, xlLineMarkers, xlLineMarkersStacked, xlLineMarkersStacked100, xlLineStacked, xlLineStacked100
+        With chartSheet.ChartObjects(ChartIndex).Chart
+            .ChartType = LinearType
+            .Axes(xlValue).HasMajorGridlines = True
+        End With
+        If AddGradient = True Then
+            With chartSheet.ChartObjects(ChartIndex).Chart.PlotArea.Format.Fill
+                .Visible = msoTrue
+                .OneColorGradient PlotAreaDegree, 1, 1
+            End With
+            With chartSheet.Shapes(chartSheet.ChartObjects(ChartIndex).Name).Fill
+                .Visible = msoTrue
+                .TwoColorGradient ShapeGradient, 4
+            End With
+        End If
+    Case Else
+        Exit Sub
+    End Select
+End Sub
+Public Sub SetChartAsCluster(ClusterType As XlChartType, Optional AddGradient As Boolean = False, Optional PlotAreaDegree As MsoGradientStyle = msoGradientHorizontal, Optional ShapeGradient As MsoGradientStyle = msoGradientVertical)
+Rem 设置图表为柱形图表，如果为非柱形图表类型，则退出过程。
+Rem 参数说明：ChartInde——设置类型的图表索引，ClusterType——要设置的图表类型，AddGradient——是否增加渐进色效果，PlotAreaDegree——绘图区渐变色角度
+Rem 参数说明：ShapeGradient——设置图表的背景渐变效果
+    Select Case ClusterType
+    Case Is = xlColumnClustered, xlColumnStacked, xlColumnStacked100
+        With chartSheet.ChartObjects(ChartIndex).Chart
+            .ChartType = ClusterType
+            .Axes(xlValue).HasMajorGridlines = True
+        End With
+        If AddGradient = True Then
+            With chartSheet.ChartObjects(ChartIndex).Chart.PlotArea.Format.Fill
+                .Visible = msoTrue
+                .OneColorGradient PlotAreaDegree, 1, 1
+            End With
+            With chartSheet.Shapes(chartSheet.ChartObjects(ChartIndex).Name).Fill
+                .Visible = msoTrue
+                .TwoColorGradient ShapeGradient, 4
+            End With
+        End If
+    Case Else
+        Exit Sub
+    End Select
+End Sub
+
+Public Sub SetChartAsArea(AreaType As XlChartType, Optional AddGradient As Boolean = False, Optional PlotAreaDegree As MsoGradientStyle = msoGradientHorizontal, Optional ShapeGradient As MsoGradientStyle = msoGradientVertical)
+Rem 设置图表为饼状图，如果为非饼状图表类型，则退出过程
+Rem 参数说明：ChartInde——设置类型的图表索引，PieType——要设置的图表类型，AddGradient——是否增加渐进色效果，PlotAreaDegree——绘图区渐变色角度
+Rem 参数说明：ShapeGradient——设置图表的背景渐变效果
+    Select Case AreaType
+    Case Is = xlArea, xlAreaStacked, xlAreaStacked100
+        With chartSheet.ChartObjects(ChartIndex).Chart
+            .ChartType = AreaType
+        End With
+        If AddGradient = True Then
+            With chartSheet.ChartObjects(ChartIndex).Chart.PlotArea.Format.Fill
+                .Visible = msoTrue
+                .OneColorGradient PlotAreaDegree, 1, 1
+            End With
+            With chartSheet.Shapes(chartSheet.ChartObjects(ChartIndex).Name).Fill
+                .Visible = msoTrue
+                .TwoColorGradient ShapeGradient, 4
+            End With
+        End If
+    Case Else
+        Exit Sub
+    End Select
+End Sub
+
+Public Function InsertSeries(DataRange As Range, XDataRange As Range, SeriesName As String, SerGroup As Integer) As Integer
+Rem 在图表中插入数据序列，并返回新插入的数据序列索引
+    With chartSheet.ChartObjects(ChartIndex).Chart
+        .SeriesCollection.NewSeries
+        SeriesIndex = SeriesIndex + 1
+        .SeriesCollection(SeriesIndex).Name = SeriesName
+        .SeriesCollection(SeriesIndex).Values = DataRange
+        .SeriesCollection(SeriesIndex).XValues = XDataRange
+        .SeriesCollection(SeriesIndex).AxisGroup = SerGroup
+    End With
+    InsertSeries = SeriesIndex
+End Function
+Public Function InsertSeriesByYValues(DataString As String, XDataRange As Range, SeriesName As String) As Integer
+Rem 在图表中插入数据序列，并返回新插入的数据序列索引
+    With chartSheet.ChartObjects(ChartIndex).Chart
+        .SeriesCollection.NewSeries
+        SeriesIndex = SeriesIndex + 1
+        .SeriesCollection(SeriesIndex).Name = SeriesName
+        .SeriesCollection(SeriesIndex).Values = DataString
+        .SeriesCollection(SeriesIndex).XValues = XDataRange
+    End With
+    InsertSeriesByYValues = SeriesIndex
+End Function
+Public Function InsertSeriesByDValues(DataString As String, XDataString As String, SeriesName As String) As Integer
+Rem 在图表中插入数据序列，并返回新插入的数据序列索引
+    With chartSheet.ChartObjects(ChartIndex).Chart
+        .SeriesCollection.NewSeries
+        SeriesIndex = SeriesIndex + 1
+        .SeriesCollection(SeriesIndex).Name = SeriesName
+        .SeriesCollection(SeriesIndex).Values = DataString
+        .SeriesCollection(SeriesIndex).XValues = XDataString
+    End With
+    InsertSeriesByDValues = SeriesIndex
+End Function
+Public Sub DeleteSeries(DeleteIndex As Integer)
+Rem 删除指定索引的数据序列
+    chartSheet.ChartObjects(ChartIndex).Chart.SeriesCollection(DeleteIndex).Delete
+End Sub
+
+Public Function CountAllSeries() As Integer
+    Dim i%
+    For i = 1 To chartSheet.ChartObjects(ChartIndex).Chart.SeriesCollection.Count
+        CountAllSeries = CountAllSeries + 1
+    Next i
+End Function
+
+Public Sub SeriesClear()
+Rem 清空图表中的数据序列
+    Dim i%
+    For i = 1 To chartSheet.ChartObjects(ChartIndex).Chart.SeriesCollection.Count
+        chartSheet.ChartObjects(ChartIndex).Chart.SeriesCollection(1).Delete
+    Next i
+End Sub
+Public Sub OpenDataLabels(Series As Integer, LabelPosition As XlDataLabelPosition, TextOrientation As Variant)
+Rem 开启某一数据序列的数据标签
+    With chartSheet.ChartObjects(ChartIndex).Chart.SeriesCollection(Series)
+        .ApplyDataLabels
+        .DataLabels.Position = LabelPosition
+        .DataLabels.Orientation = TextOrientation
+    End With
+End Sub
+Public Sub CloseDataLabels(Series As Integer)
+Rem 关闭某一数据序列的数据标签
+    With chartSheet.ChartObjects(ChartIndex).Chart.SeriesCollection(Series)
+        .ApplyDataLabels xlDataLabelsShowNone
+    End With
+End Sub
+Public Sub OpenSeriesSmooth(Series As Integer)
+Rem 设置某一数据序列为线性平滑线，如果图表类型不为线性，则退出
+    Select Case chartSheet.ChartObjects(ChartIndex).Chart.ChartType
+    Case Is = xlLine, xlLineMarkers, xlLineMarkersStacked, xlLineMarkersStacked100, xlLineStacked, xlLineStacked100
+        chartSheet.ChartObjects(ChartIndex).Chart.SeriesCollection(Series).Smooth = True
+    Case Else
+        Exit Sub
+    End Select
+End Sub
+Public Sub CloseSeriesSmooth(Series As Integer)
+Rem 设置某一数据序列为普通线，如果图表类型不为线性，则退出
+    Select Case chartSheet.ChartObjects(ChartIndex).Chart.ChartType
+    Case Is = xlLine, xlLineMarkers, xlLineMarkersStacked, xlLineMarkersStacked100, xlLineStacked, xlLineStacked100
+        chartSheet.ChartObjects(ChartIndex).Chart.SeriesCollection(Series).Smooth = False
+    Case Else
+        Exit Sub
+    End Select
+End Sub
+Public Sub OpenShadow(Series As Integer, ShadowType As MsoShadowType)
+Rem 为某一数据序列开启阴影效果
+    chartSheet.ChartObjects(ChartIndex).Chart.SeriesColltion(Series).Format.Shadow.Type = ShadowType
+End Sub
+Public Sub SetSeriesLineColor(Series As Integer, LineColor As Integer, NewChartType As XlChartType)
+Rem 为某一数据序列设置线条颜色，仅对线性图表有效;LineColor——颜色的RGB表示
+    With chartSheet.ChartObjects(ChartIndex).Chart.SeriesCollection(Series)
+        Select Case NewChartType
+        Case Is = xlColumnClustered
+            .Fill.Visible = msoTrue
+            .Fill.ForeColor.SchemeColor = LineColor
+        Case Is = xlColumnStacked
+            .Fill.Visible = msoTrue
+            .Fill.ForeColor.SchemeColor = LineColor
+        Case Is = xlLine
+            .Border.ColorIndex = LineColor
+        Case Is = xlLineMarkers
+            .Format.Line.Visible = msoTrue
+            .Border.ColorIndex = LineColor
+            .Fill.ForeColor.SchemeColor = LineColor
+            .Format.Fill.ForeColor.ObjectThemeColor = msoThemeColorAccent2
+            .Format.Line.ForeColor.ObjectThemeColor = msoThemeColorAccent2
+'            .Format.Line.ForeColor.TintAndShade = 0
+'            .Format.Line.ForeColor.Brightness = 0
+            .Format.Line.Transparency = 0
+        End Select
+    End With
+End Sub
+Public Sub SetLegendPosition(LegendPosition As XlLegendPosition)
+Rem 设置图表的图例位置
+    chartSheet.ChartObjects(ChartIndex).Chart.Legend.Position = LegendPosition
+    chartSheet.ChartObjects(ChartIndex).Chart.Axes(xlCategory).CategoryType = xlCategoryScale
+End Sub
+Public Sub SetChartTitleAndName(ChartName As String, Optional ChartTitle As String = "")
+Rem 设置图表的名字和标题
+    chartSheet.ChartObjects(ChartIndex).Name = ChartName
+
+    If ChartTitle = "" Then ChartTitle = ChartName
+
+    With chartSheet.ChartObjects(ChartIndex).Chart
+        .HasTitle = True
+        .ChartTitle.Text = ChartTitle
+        .Axes(xlValue).MajorGridlines.Delete
+    End With
+    
+End Sub
+
+Public Sub DelChartTitle()
+Rem 设置图表的名字和标题
+'    chartSheet.ChartObjects(ChartIndex).Name = ""
+'
+'    If ChartTitle = "" Then ChartTitle = ChartName
+
+    With chartSheet.ChartObjects(ChartIndex).Chart
+        .HasTitle = False
+'        .ChartTitle.Text = ChartTitle
+    End With
+End Sub
+
+Public Sub ChangeChartType(NewChartType As XlChartType)
+Rem 修改图表的类型
+    chartSheet.ChartObjects(ChartIndex).Chart.ChartType = NewChartType
+End Sub
+
+Public Sub ChangeSeriesDataLabels(Series As Integer, NewSeriesType As XlChartType)
+    chartSheet.ChartObjects(ChartIndex).Chart.SeriesCollection(Series).ApplyDataLabels
+End Sub
+
+Public Sub ChangeSeriesType(Series As Integer, NewSeriesType As XlChartType)
+Rem 修改数据序列的类型
+    chartSheet.ChartObjects(ChartIndex).Chart.SeriesCollection(Series).ChartType = NewSeriesType
+    
+    If NewSeriesType = 65 Then
+        With chartSheet.ChartObjects(ChartIndex).Chart.SeriesCollection(Series)
+            .Format.Line.Weight = 2
+            .MarkerStyle = 2
+            .MarkerSize = 3
+        End With
+    End If
+End Sub
+Public Sub FillBackGroundWithTexture(FillTexture As MsoPresetTexture)
+Rem 设置背景为纹理
+    With chartSheet.Shapes(chartSheet.ChartObjects(ChartIndex).Chart.ChartTitle.Text).Fill
+        .Visible = msoTrue
+        .PresetTextured FillTexture
+        .TextureTile = msoTrue
+        .TextureOffsetX = 0
+        .TextureOffsetY = 0
+        .TextureHorizontalScale = 1
+        .TextureVerticalScale = 1
+        .TextureAlignment = msoTextureTopLeft
+    End With
+End Sub
+Public Sub ChangeSeriesAxisGroup(Series As Integer, Optional StrTitle As String, Optional AxisGroup As XlAxisGroup = xlSecondary)
+Rem 修改数据序列的坐标轴序列，默认为修改为次坐标轴
+    chartSheet.ChartObjects(ChartIndex).Chart.SeriesCollection(Series).AxisGroup = AxisGroup
+    If Len(StrTitle) > 0 Then
+        If AxisGroup = xlSecondary Then
+            chartSheet.ChartObjects(ChartIndex).Chart.SetElement (msoElementSecondaryValueAxisTitleRotated)
+            chartSheet.ChartObjects(ChartIndex).Chart.Axes(xlValue, xlSecondary).AxisTitle.Text = StrTitle
+            chartSheet.ChartObjects(ChartIndex).Chart.Axes(xlValue, xlSecondary).AxisTitle.Font.Bold = False
+        Else
+            chartSheet.ChartObjects(ChartIndex).Chart.SetElement (msoElementPrimaryValueAxisTitleRotated)
+            chartSheet.ChartObjects(ChartIndex).Chart.Axes(xlValue, xlPrimary).AxisTitle.Text = StrTitle
+            chartSheet.ChartObjects(ChartIndex).Chart.Axes(xlValue, xlPrimary).AxisTitle.Font.Bold = False
+        End If
+        
+    End If
+'    chartSheet.ChartObjects(ChartIndex).Chart.Axes(xlValue, AxisGroup).Axes(xlCategory).CategoryType = xlCategoryScale
+End Sub
+Public Sub SetAxesStyle(Series As Integer, Optional AxisGroup As XlAxisGroup = xlPrimary, _
+                        Optional Orientation As Variant = xlUpward, Optional AxisTitle As String = "")
+Rem 设置坐标轴样式
+    If AxisGroup = xlSecondary Then
+        chartSheet.ChartObjects(ChartIndex).Chart.SeriesCollection(Series).AxisGroup = 2
+    ElseIf AxisGroup = xlPrimary Then
+        chartSheet.ChartObjects(ChartIndex).Chart.SeriesCollection(Series).AxisGroup = 1
+    End If
+    chartSheet.ChartObjects(ChartIndex).Chart.Axes(xlValue, AxisGroup).HasTitle = True
+    chartSheet.ChartObjects(ChartIndex).Chart.Axes(xlValue, AxisGroup).AxisTitle.Text = AxisTitle
+    chartSheet.ChartObjects(ChartIndex).Chart.Axes(xlValue, AxisGroup).AxisTitle.Orientation = Orientation
+End Sub
+Public Sub SetAxesNumberFormat(Optional NumberFormat As String = "G\通用格式", Optional AxisGroup As XlAxisGroup = xlPrimary)
+    chartSheet.ChartObjects(ChartIndex).Chart.Axes(xlValue, AxisGroup).TickLabels.NumberFormatLocal = NumberFormat
+End Sub
+Public Sub InsertChartAreaGradient(GradientColor As MsoRGBType, GradientStopPosition As Double, GradientStopsIndex As Integer)
+Rem 插入图表背景渐变色；GradientColor——渐变色RGB，GradientStopPosition——渐变光圈的位置；GradientStopsIndex——渐变光圈的索引
+    With chartSheet.Shapes(chartSheet.ChartObjects(ChartIndex).Name).Fill
+        .GradientStops.Insert GradientColor, GradientStopPosition, Index:=GradientStopsIndex
+    End With
+End Sub
+Public Sub InsertSeriesGradient(Series As Integer, GradientColor As MsoRGBType, GradientStopPosition As Double)
+Rem 插入数据序列渐变光圈，仅对柱形图有效
+    Select Case chartSheet.ChartObjects(ChartIndex).Chart.ChartType
+    Case Is = xlColumnClustered, xlColumnStacked, xlColumnStacked100
+        With chartSheet.ChartObjects(ChartIndex).Chart.SeriesCollection(Series).Format.Fill
+            .GradientStops.Insert GradientColor, GradientStopPosition
+        End With
+    Case Else
+        Exit Sub
+    End Select
+End Sub
+Public Sub InsertPlotAreaGradient(GradientColor As MsoRGBType, GradientStopPosition As Double)
+Rem 设置绘图区渐变光圈
+    With chartSheet.ChartObjects(ChartIndex).Chart.PlotArea.Format.Fill
+        .GradientStops.Insert GradientColor, GradientStopPosition
+    End With
+End Sub
+Public Sub GradientStopsDelete(StartGradientStopsIndex As Integer)
+Rem 删除多余的渐变光圈
+    Dim i%
+    For i = StartGradientStopsIndex To chartSheet.Shapes(chartSheet.ChartObjects(ChartIndex).Name).Fill.GradientStops.Count
+        chartSheet.Shapes(chartSheet.ChartObjects(ChartIndex).Name).Fill.GradientStops.Delete StartGradientStopsIndex
+    Next i
+End Sub
+Public Sub SetSeriesLineWeight(Series As Integer, LineType As MsoLineStyle, Weight As Double)
+Rem 设置数据序列的线条粗细
+    Select Case chartSheet.ChartObjects(ChartIndex).Chart.ChartType
+    Case Is = xlLine, xlLineMarkers, xlLineMarkersStacked, xlLineMarkersStacked100, xlLineStacked, xlLineStacked100
+        chartSheet.ChartObjects(ChartIndex).Chart.SeriesCollection(Series).Format.Line.Style = LineType
+        With chartSheet.ChartObjects(ChartIndex).Chart.SeriesCollection(Series).Format.Line
+            .Visible = msoTrue
+            .Weight = Weight
+        End With
+    Case Else
+        Exit Sub
+    End Select
+End Sub
+Public Sub SetSeries3DFormat(Series As Integer, Type3D As MsoBevelType, Width As Integer, Height As Integer)
+Rem 设置数据序列的3D样式
+    With chartSheet.ChartObjects(ChartIndex).Chart.SeriesCollection(Series).Format.ThreeD
+        .BevelTopType = Type3D
+        .BevelTopInset = Width
+        .BevelTopDepth = Height
+    End With
+End Sub
+Public Sub SetSeriesMarkerStyle(Series As Integer, MarkerStyle As Integer, MarkerSize As Integer)
+Rem 设置数据序列的数据标记类型
+    Select Case chartSheet.ChartObjects(ChartIndex).Chart.ChartType
+    Case Is = xlLineMarkers, xlLineMarkersStacked, xlLineMarkersStacked100
+        With chartSheet.ChartObjects(ChartIndex).Chart.SeriesCollection(Series)
+            .MarkerStyle = MarkerStyle
+            .MarkerSize = MarkerSize
+        End With
+    Case Else
+        Exit Sub
+    End Select
+End Sub
+
+Public Sub SetAxisMax(AxisGroup As XlAxisGroup, MaximumNumber As Double, MinimumNumber As Double)
+    Dim MinV As Double
+    Dim n As Long
+    Dim SetNum As Double
+    
+    With chartSheet.ChartObjects(ChartIndex).Chart.Axes(xlValue, AxisGroup)
+        .MinimumScale = MinimumNumber
+        .MaximumScale = MaximumNumber
+        
+    End With
+    
+    SetNum = chartSheet.ChartObjects(ChartIndex).Chart.Axes(xlValue, AxisGroup).MajorUnit
+    n = Application.RoundUp(MinimumNumber / SetNum, 0)
+    MinimumNumber = (n - 2) * SetNum
+    
+    If CInt(Replace(Replace(SetNum, "0", ""), ".", "")) Mod 2 = 0 Then
+        If MinimumNumber * 100 Mod 2 = 1 Then
+'                MinV = CDbl(Left(MinimumNumber, Len(Str(Abs(MinimumNumber))) - 2) & Right(MinimumNumber, 1) - 1)
+            MinV = MinimumNumber - SetNum
+
+'            Debug.Print "aa"
+        Else
+            MinV = MinimumNumber
+        End If
+    Else
+        MinV = MinimumNumber
+    End If
+    
+    If MinV < 0 Then
+        MinV = 0
+    End If
+    With chartSheet.ChartObjects(ChartIndex).Chart.Axes(xlValue, AxisGroup)
+'        .MaximumScale = MaximumNumber
+        .MajorUnit = SetNum
+        .MinimumScale = MinV
+    End With
+End Sub
+
+Public Sub SetAxisMin(AxisGroup As XlAxisGroup, MinimumNumber As Double)
+    With chartSheet.ChartObjects(ChartIndex).Chart.Axes(xlValue, AxisGroup)
+        .MinimumScale = MinimumNumber
+    End With
+    
+End Sub
+
+Public Sub SetAxisMaxAndMin(AxisGroup As XlAxisGroup, MaximumNumber As Double, MinimumNumber As Double)
+Rem 设置坐标轴的最大值和最小值
+
+    With chartSheet.ChartObjects(ChartIndex).Chart.Axes(xlValue, AxisGroup)
+        .MaximumScale = MaximumNumber
+        .MinimumScale = MinimumNumber
+    End With
+    
+End Sub
+
+Public Function GetTitle() As String
+    GetTitle = chartSheet.ChartObjects(ChartIndex).Chart.ChartTitle.Text
+End Function
+
+Public Function CopyToPosition(DestinationRange As Range) As Chart
+    chartSheet.ChartObjects(chartSheet.ChartObjects(ChartIndex).Chart.ChartTitle.Text).Copy
+    DestinationRange.Worksheet.Activate
+    Dim DestSheet As Worksheet
+    Set DestSheet = DestinationRange.Worksheet
+    DestinationRange.Select
+    DestSheet.Paste
+    Set CopyToPosition = DestSheet.ChartObjects(chartSheet.ChartObjects(ChartIndex).Chart.ChartTitle.Text).Chart
+    Set chartSheet = DestSheet
+End Function
+
+Public Sub ModifySeriesValuesByRange(Series_Index As Integer, ValueRange As Range, XValueRange As Range)
+    With chartSheet.ChartObjects(ChartIndex).Chart.SeriesCollection(Series_Index)
+        .Values = ValueRange
+        .XValues = XValueRange
+    End With
+    SeriesIndex = Series_Index
+End Sub
+
+Public Sub ModifySeriesValuesByValue(Series_Index As Integer, ValueString As String, XValueString As String)
+    With chartSheet.ChartObjects(ChartIndex).Chart.SeriesCollection(Series_Index)
+        .Values = ValueString
+        .XValues = XValueString
+    End With
+    SeriesIndex = Series_Index
+End Sub
+
+Public Function GetIndex(ChartName As String) As Integer
+    GetIndex = chartSheet.ChartObjects(ChartName).Index
+End Function
+
+Public Sub InsertBenchmarkSeries(BenchMarkValue As String, SeriesLength As Long)
+    Dim i&, Benchmark$
+    Benchmark = ""
+    For i = 1 To SeriesLength
+        If BenchMarkValue = "" Then BenchMarkValue = 0
+        Benchmark = Benchmark & "," & BenchMarkValue
+    Next
+    Benchmark = "={" & Right(Benchmark, Len(Benchmark) - 1) & "}"
+    With chartSheet.ChartObjects(ChartIndex).Chart
+        .SeriesCollection.NewSeries
+        SeriesIndex = SeriesIndex + 1
+        .SeriesCollection(SeriesIndex).Name = "Benchmark"
+        .SeriesCollection(SeriesIndex).Values = Benchmark
+    End With
+End Sub
+
+
+Public Function GetAxisMax(StrAxis As String) As Variant
+    If StrAxis = "UMTS" Then
+        GetAxisMax = chartSheet.ChartObjects(ChartIndex).Chart.Axes(xlValue, xlSecondary).MaximumScale
+    Else
+        GetAxisMax = chartSheet.ChartObjects(ChartIndex).Chart.Axes(xlValue, xlPrimary).MaximumScale
+    End If
+End Function
+
+Public Function InsertOthterSeries(DataRange As Variant, XDataRange As Variant, ChType As XlChartType, StrAxis As String) As Integer
+    Dim Ps As Points
+    Dim Pt As Point
+    Dim iPointIndex As Integer
+    Rem 在图表中插入数据序列，并返回新插入的数据序列索引
+    With chartSheet.ChartObjects(ChartIndex).Chart
+        .SeriesCollection.NewSeries
+        SeriesIndex = SeriesIndex + 1
+        .SeriesCollection(SeriesIndex).Name = ""
+        .SeriesCollection(SeriesIndex).Values = DataRange
+        .SeriesCollection(SeriesIndex).XValues = XDataRange
+        
+'        .SeriesCollection(SeriesIndex).AxisGroup = 1
+        With .SeriesCollection(SeriesIndex)
+            Select Case ChType
+            Case 4
+                .ChartType = xlLineMarkers
+                '                .Border.ColorIndex = 5
+                .Format.Line.Weight = 2
+            Case 51
+                .ChartType = xlColumnClustered
+                .Fill.ForeColor.SchemeColor = 29
+            Case -4169
+                .ChartType = xlXYScatter
+                .Border.LineStyle = xlNone
+                .MarkerStyle = xlNone
+                
+                .ErrorBar Direction:=xlY, Include:=xlMinusValues, Type:=xlPercent, Amount:=100
+                .ErrorBars.Border.LineStyle = xlDash
+                .ErrorBars.Border.ColorIndex = 29
+                .ErrorBars.Border.Weight = xlThick
+                .ErrorBars.EndStyle = xlCap
+
+            End Select
+        End With
+        If StrAxis = "UMTS" Then
+            .SeriesCollection(SeriesIndex).AxisGroup = 2
+        Else
+            .SeriesCollection(SeriesIndex).AxisGroup = 1
+        End If
+    End With
+    
+'    chartSheet.ChartObjects(ChartIndex).Chart
+    
+'    If chartSheet.ChartObjects(ChartIndex).Chart.ChartTitle.Text = "5" Then
+'        chartSheet.ChartObjects(ChartIndex).Chart.Legend.LegendEntries(3).Delete
+'    Else
+'        If ChartIndex > 5 Then
+'            chartSheet.ChartObjects(ChartIndex).Chart.Legend.LegendEntries(3).Delete
+'        Else
+'            chartSheet.ChartObjects(ChartIndex).Chart.Legend.LegendEntries(2).Delete
+'        End If
+'    End If
+    
+    InsertOthterSeries = SeriesIndex
+End Function
+
+Public Function ChangeLineType(Series As Integer)
+    With chartSheet.ChartObjects(ChartIndex).Chart.SeriesCollection(Series).Format.Line
+        .Visible = msoTrue
+        .Weight = 2
+
+        .DashStyle = msoLineDashDot
+    End With
+    
+End Function
+
+Function InsertLabel(SeriesIndex As Long, lPointIndex As Long, refLabel As String)
+    Dim lblLabel As DataLabel
+    Dim pntPoint As Point
+    Dim srsSeries As Series
+
+    Dim lLabelPosition As Long
+    Dim lDashPos As Long
+    Dim lListIndex As Long
+
+    Set srsSeries = chartSheet.ChartObjects(ChartIndex).Chart.SeriesCollection(SeriesIndex)
+    Set pntPoint = srsSeries.Points(lPointIndex)
+
+    If Len(refLabel) > 0 Then
+        pntPoint.HasDataLabel = True
+        Set lblLabel = pntPoint.DataLabel
+        lblLabel.Text = refLabel
+        
+        If srsSeries.ChartType = 65 Then
+            lblLabel.Position = 0
+        Else
+            lblLabel.Position = 4
+        End If
+
+        lblLabel.Select
+        lblLabel.top = 20
+        
+        With lblLabel.Format.Fill
+            .Visible = msoTrue
+            .ForeColor.RGB = RGB(255, 255, 0)
+            .Transparency = 0
+            .Solid
+        End With
+
+        lblLabel.Format.TextFrame2.TextRange.Font.Bold = msoTrue
+    End If
+
+End Function
+
+Function AddNewConnector(pNum As Integer, xNum As Integer)
+    Dim pa As PlotArea
+    Dim x0 As Single
+    Dim y0 As Single
+    Dim w1 As Single
+    Dim h1 As Single
+    Dim oConnector  As Shape
+    
+    Dim BeginX As Single
+    
+    Set pa = chartSheet.ChartObjects(ChartIndex).Chart.PlotArea
+    
+    y0 = pa.InsideTop
+    x0 = pa.InsideLeft
+    w1 = pa.InsideWidth
+    h1 = pa.InsideHeight
+    
+    If pNum = xNum Then
+        BeginX = x0 + w1
+    ElseIf pNum = 0 Then
+        BeginX = x0
+    Else
+        BeginX = x0 + w1 * (pNum - 1 + 0.5) / xNum + w1 / xNum * 0.5
+    End If
+    
+    Set oConnector = chartSheet.ChartObjects(ChartIndex).Chart.Shapes.AddConnector(msoConnectorStraight, BeginX, y0, BeginX, h1 + y0)
+    
+    With oConnector.Line
+        .Visible = msoTrue
+        .ForeColor.RGB = RGB(128, 0, 128)
+'        .Transparency = 0
+        .Weight = 3
+        .DashStyle = msoLineLongDash
+        
+    End With
+End Function
+
+Function AddNewTextFrame(pNum As Integer, xNum As Integer, StrLab As String)
+    Dim pa As PlotArea
+    Dim x0 As Single
+    Dim y0 As Single
+    Dim w1 As Single
+    Dim h1 As Single
+    Dim TxtFrmae  As Shape
+    
+    Dim BeginX As Single
+    
+    Set pa = chartSheet.ChartObjects(ChartIndex).Chart.PlotArea
+    
+    y0 = pa.InsideTop
+    x0 = pa.InsideLeft
+    w1 = pa.InsideWidth
+    h1 = pa.InsideHeight
+    
+    If pNum = xNum Then
+        BeginX = x0 + w1
+    ElseIf pNum = 0 Then
+        BeginX = x0
+    Else
+        BeginX = x0 + w1 * (pNum - 1 + 0.5) / xNum + w1 / xNum * 0.5
+        If BeginX + 70 > x0 + w1 Then
+            BeginX = x0 + w1 - 70
+        End If
+    End If
+    
+    Set TxtFrmae = chartSheet.ChartObjects(ChartIndex).Chart.Shapes.AddShape(msoShapeRectangle, BeginX, y0 - 17, 70, 16)
+    
+    With TxtFrmae
+        .TextFrame2.TextRange.Characters.Text = StrLab
+        .TextFrame2.TextRange.ParagraphFormat.Alignment = msoAlignCenter
+        .TextFrame2.VerticalAnchor = msoAnchorMiddle
+        .TextFrame2.TextRange.Font.Bold = msoTrue
+        .Fill.ForeColor.RGB = RGB(255, 255, 0)
+        .Line.Visible = msoFalse
+        .TextFrame2.TextRange.Font.Fill.ForeColor.RGB = RGB(0, 0, 0)
+    End With
+End Function
+
+
+
+
+
+
+Option Explicit
+
+Public Sub DrawAllCharts(StrClu As String)
+    Dim i As Integer
+    Dim k As Integer
+    Dim m As Integer
+    Dim Cht As NewSample
+
+    Dim ShtHuawei As Worksheet
+    Dim ShtChart As Worksheet
+    Dim ShtSetting As Worksheet
+
+    Dim DateRng As Range
+    Dim myRange As Range
+
+    Dim ChartNum As Integer
+    Dim Date_Begin As Integer
+    Dim Date_End As Integer
+    Dim StrKpiName As String
+    Dim StrChartName As String
+    Dim KPI_Col As Integer
+    Dim SerType As XlChartType
+    Dim ArrCol
+    Dim SerCol As Integer
+    Dim GName As String
+
+    Dim CluNum As Integer
+    Dim Col_Int As Integer
+
+    Dim StrChartTitle As String
+    Dim ShtName As String
+    Dim oldStatusBar
+
+    Application.ScreenUpdating = False
+    oldStatusBar = Application.DisplayStatusBar
+    Application.DisplayStatusBar = True
+
+    On Error GoTo YesErr
+
+    Application.StatusBar = "正在画图，请稍侯..."
+
+    Set Cht = New NewSample
+
+    Set ShtChart = Worksheets("Charts")
+    Set ShtHuawei = Worksheets("CitiesCombinedDCR")
+    Set ShtSetting = Worksheets("Setting_Graph")
+
+    Set Cht.chartSheet = ShtChart
+    Cht.ClearAllCharts
+
+    m = 2
+
+    ChartNum = 0
+    For i = 2 To ShtSetting.UsedRange.Rows.Count
+        If Len(ShtSetting.Cells(i, 9).Value) > 0 Then
+            StrChartName = StrClu & " " & Trim(ShtSetting.Cells(i, 9).Value)
+            StrKpiName = Trim(ShtSetting.Cells(i, 2).Value)
+            StrChartTitle = Trim(ShtSetting.Cells(i, 9).Value)
+
+            If Len(ShtSetting.Cells(i, 10).Value) > 0 Then
+                ShtName = ShtSetting.Cells(i, 10).Value
+                Set ShtHuawei = ThisWorkbook.Worksheets(ShtName)
+
+                Col_Int = GetKPI_NO(ShtHuawei, ShtSetting.Cells(i, 11).Value)
+
+                KPI_Col = GetRng_KPI_NO(ShtHuawei.Cells(2, Col_Int).Resize(1, ShtHuawei.Cells(2, Col_Int).End(xlToRight).Column), Trim(ShtSetting.Cells(i, 1).Value))
+
+                Date_Begin = GetBeginCol(ShtHuawei, StrClu, Col_Int)
+                Date_End = GetClu_Col(ShtHuawei, StrClu, Col_Int)
+            Else
+                Date_Begin = GetBeginCol(ShtHuawei, StrClu, 1)
+                Date_End = GetClu_Col(ShtHuawei, StrClu, 1)
+
+                Set DateRng = ShtHuawei.Range("B" & Date_Begin & ":B" & Date_End)
+                KPI_Col = GetKPI_NO(ShtHuawei, Trim(ShtSetting.Cells(i, 1).Value))
+            End If
+
+            If KPI_Col > 0 Then
+
+                Set myRange = ShtHuawei.Range(ShtHuawei.Cells(Date_Begin, KPI_Col).Address & ":" & ShtHuawei.Cells(Date_End, KPI_Col).Address)
+
+                Select Case ShtSetting.Cells(i, 8).Value
+                Case Is = "xlLine"
+                    SerType = xlLine
+                Case Is = "xlLineMarkers"
+                    SerType = xlLineMarkers
+                Case Is = "xlLineStacked"
+                    SerType = xlLineStacked
+                Case Is = "xlColumnClustered"
+                    SerType = xlColumnClustered
+                Case Is = "xlColumnStacked"
+                    SerType = xlColumnStacked
+                Case Is = "xlArea"
+                    SerType = xlArea
+                Case Is = "xlAreaStacked"
+                    SerType = xlAreaStacked
+                End Select
+
+                Set Cht = New NewSample
+
+                Set Cht.chartSheet = ShtChart
+                '                    ChartNum = Cht.GetChartsNum
+                If Len(Trim(ShtSetting.Cells(i, 3).Value)) Then
+                    ArrCol = Split(ShtSetting.Cells(i, 3).Value, ",")
+                    '                        RedInt = CInt(Replace(ArrCol(0), "RGB(", ""))
+                    '                        GreenInt = CInt(ArrCol(1))
+                    '                        BlueInt = CInt(Replace(ArrCol(2), ")", ""))
+                    ShtSetting.Cells(i, 3).Interior.color = RGB(Replace(ArrCol(0), "RGB(", ""), CInt(ArrCol(1)), Replace(ArrCol(2), ")", ""))
+                    SerCol = ShtSetting.Cells(i, 3).Interior.ColorIndex
+                End If
+
+                GName = ShtSetting.Cells(i, 7).Value
+                If Cht.ExistChart(ShtChart, StrChartName) = True Then
+                    Set Cht.TargetChart = Cht.AttachToChart(ShtChart, StrChartName)
+
+                    Cht.SeriesIndex = Cht.CountAllSeries
+                    Cht.InsertSeries myRange, DateRng, StrKpiName, CInt(ShtSetting.Cells(i, 6).Value)
+                    Cht.ChangeSeriesType Cht.SeriesIndex, SerType
+
+                    If ShtSetting.Cells(i, 6).Value = 2 Then
+                        Cht.ChangeSeriesAxisGroup Cht.SeriesIndex, GName, xlSecondary
+                    ElseIf ShtSetting.Cells(i, 6).Value = 1 Then
+                        Cht.ChangeSeriesAxisGroup Cht.SeriesIndex, GName, xlPrimary
+                    End If
+
+                    If Len(Trim(ShtSetting.Cells(i, 3).Value)) Then
+                        Cht.SetSeriesLineColor Cht.SeriesIndex, SerCol, SerType
+                    End If
+
+                    If Len(ShtSetting.Cells(i, 10).Value) > 0 Then
+                        Cht.ChangeSeriesDataLabels Cht.SeriesIndex, SerType
+                    End If
+
+                    Cht.SetLegendPosition xlLegendPositionBottom
+                    Cht.SetChartTitleAndName StrChartName, StrChartTitle
+                Else
+                    If ChartNum Mod 2 = 0 Then
+                        Cht.InitialChartPosition Cht.chartSheet.Cells(m + 1, 1).Left, Cht.chartSheet.Cells(m + 1, 1).top + (ChartNum / 2) * 230, 380, 230
+                    Else
+                        Cht.InitialChartPosition Cht.chartSheet.Cells(m + 1, 1).Left + 390, Cht.chartSheet.Cells(m + 1, 1).top + ((ChartNum - 1) / 2) * 230, 380, 230
+                    End If
+
+                    Cht.InsertSeries myRange, DateRng, StrKpiName, CInt(ShtSetting.Cells(i, 6).Value)
+
+                    If ShtSetting.Cells(i, 6).Value = 2 Then
+                        Cht.ChangeSeriesAxisGroup Cht.SeriesIndex, GName, xlSecondary
+                    ElseIf ShtSetting.Cells(i, 6).Value = 1 Then
+                        Cht.ChangeSeriesAxisGroup Cht.SeriesIndex, GName, xlPrimary
+                    End If
+                    '                    Cht.SetAxisMaxAndMin xlPrimary, Application.RoundUp(Application.Max(ShtHuawei.Cells(2, Kpi_Col).Resize(Date_end - 1).Value), 2), Application.RoundDown(Application.Min(ShtHuawei.Cells(2, Kpi_Col).Resize(Date_end - 1).Value), 2)
+                    Cht.ChangeSeriesType Cht.SeriesIndex, SerType
+
+                    If Len(ShtSetting.Cells(i, 10).Value) > 0 Then
+                        Cht.ChangeSeriesDataLabels Cht.SeriesIndex, SerType
+                    End If
+
+                    If Len(Trim(ShtSetting.Cells(i, 3).Value)) Then
+                        Cht.SetSeriesLineColor Cht.SeriesIndex, SerCol, SerType
+                    End If
+                    Cht.SetLegendPosition xlLegendPositionBottom
+                    Cht.SetChartTitleAndName StrChartName, StrChartTitle
+                    ChartNum = ChartNum + 1
+                End If
+            End If
+        End If
+    Next
+    '        k = Date_End
+    '        CluNum = CluNum + 1
+    '        ChartNum = Cht.GetChartsNum
+    '        m = Application.RoundUp((Application.RoundUp((ChartNum / 2), 0) * 230) / 13.5, 0) + CluNum * 2 + 2
+    '    Next
+
+    '    For Each Shp In ShtChart.ChartObjects
+    '        Shp.Name = Split(Shp.Name, "_")(1)
+    '
+    '    Next
+    '    oldStatusBar = ""
+    GoTo NoErr:
+YesErr:
+    MsgBox "Select Ran Sharing file error" + Err.Description
+NoErr:
+    Application.StatusBar = False
+    Application.DisplayStatusBar = oldStatusBar
+    Application.ScreenUpdating = True
+End Sub
+
+Public Function GetClu_Col(ShtHuawei As Worksheet, StrFind As Variant, ColName As Integer) As Long
+    Dim rng As Range
+    If Len(Trim(StrFind)) > 0 Then
+        With ShtHuawei.Columns(ColName)
+            Set rng = .Find(What:=StrFind, _
+                            After:=.Cells(.Cells.Count), _
+                            LookIn:=xlValues, _
+                            LookAt:=xlWhole, _
+                            SearchOrder:=xlByRows, _
+                            SearchDirection:=xlPrevious, _
+                            MatchCase:=False)
+            If Not rng Is Nothing Then
+                GetClu_Col = rng.Row
+                Exit Function
+            End If
+        End With
+    End If
+End Function
+
+Public Function GetKPI_NO(ShtData As Worksheet, StrFind As Variant) As Integer
+    Dim rng As Range
+    If Len(Trim(StrFind)) > 0 Then
+        With ShtData.Rows("1:1")
+            Set rng = .Find(What:=StrFind, _
+                            After:=.Cells(.Cells.Count), _
+                            LookIn:=xlValues, _
+                            LookAt:=xlWhole, _
+                            SearchOrder:=xlByColumns, _
+                            SearchDirection:=xlNext, _
+                            MatchCase:=False, MatchByte:=False)
+            If Not rng Is Nothing Then
+                GetKPI_NO = rng.Column
+                Exit Function
+            End If
+        End With
+    End If
+End Function
+
+Public Function GetRng_KPI_NO(RngData As Range, StrFind As Variant) As Integer
+    Dim rng As Range
+    If Len(Trim(StrFind)) > 0 Then
+        With RngData
+            Set rng = .Find(What:=StrFind, _
+                            After:=.Cells(.Cells.Count), _
+                            LookIn:=xlValues, _
+                            LookAt:=xlWhole, _
+                            SearchOrder:=xlByColumns, _
+                            SearchDirection:=xlNext, _
+                            MatchCase:=False, MatchByte:=False)
+            If Not rng Is Nothing Then
+                GetRng_KPI_NO = rng.Column
+                Exit Function
+            End If
+        End With
+    End If
+End Function
+
+Public Function GetEndCol(ShtData As Worksheet, StrFind As Variant, ColName As Integer) As Long
+    Dim rng As Range
+    If Len(Trim(StrFind)) > 0 Then
+        With ShtData.Columns(ColName)
+            Set rng = .Find(What:=StrFind, _
+                            After:=.Cells(.Cells.Count), _
+                            LookIn:=xlValues, _
+                            LookAt:=xlWhole, _
+                            SearchOrder:=xlByRows, _
+                            SearchDirection:=xlPrevious, _
+                            MatchCase:=False)
+            If Not rng Is Nothing Then
+                GetEndCol = rng.Row
+                Exit Function
+            End If
+        End With
+    End If
+End Function
+
+Public Function GetBeginCol(ShtData As Worksheet, StrFind As Variant, ColName As Integer) As Long
+    Dim rng As Range
+    If Len(Trim(StrFind)) > 0 Then
+        With ShtData.Columns(ColName)
+            Set rng = .Find(What:=StrFind, _
+                            After:=.Cells(.Cells.Count), _
+                            LookIn:=xlValues, _
+                            LookAt:=xlWhole, _
+                            SearchOrder:=xlByRows, _
+                            SearchDirection:=xlNext, _
+                            MatchCase:=False)
+            If Not rng Is Nothing Then
+                GetBeginCol = rng.Row
+                Exit Function
+            End If
+        End With
+    End If
+End Function
+
+Sub SaveAsShp()
+    Dim shap As Shape
+    Dim i As Integer
+
+    Application.ScreenUpdating = False
+
+    With ThisWorkbook.Worksheets("Charts")
+        For i = 1 To .Shapes.Count
+            If .Shapes(i).Type = msoChart Then
+                Set shap = .Shapes(i)
+                shap.Copy
+                With .ChartObjects.Add(0, 0, shap.Width, shap.Height).Chart
+                    .Paste
+                    .Export ThisWorkbook.Path & "\" & Replace(shap.Name, "/", "") & ".jpg"
+                    .Parent.Delete
+                End With
+            End If
+        Next
+    End With
+    MsgBox "Save successfully!"
+    Application.ScreenUpdating = True
+End Sub
+
