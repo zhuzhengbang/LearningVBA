@@ -1,0 +1,4 @@
+Dim cell As Range
+For Each cell In newSheet.Range(newSheet.cells(2, 5), newSheet.cells(newSheet.UsedRange.Rows.Count, 8))
+	cell.Value = cell.Value
+Next

@@ -1,0 +1,6 @@
+In the pivot table, I prefer to see the Value fields displayed as column labels next to the Row label fields. By default, Excel will create a field "Sigma Values" and move it into either the Row Labels or Column Labels. I would like to add to my Pivot Table Create macro, a line(s) of code to create and place this field into the Columns Label
+
+using this code:
+objTable.AddFields RowFields:=Array("SectorName"), ColumnFields:="Data"
+
+When using two or more data fields, you need to set a column field to "Data", then define your data fields. 
